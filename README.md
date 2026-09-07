@@ -1,9 +1,93 @@
 # Docer
 
-Github action -> trigger whenever PR is merged -> request Agent to read, understand and generate/update architecture document for the project. Project can contain multiple repositories, and the architecture document should reflect the overall structure and design of the entire project.
+Docer keeps the architecture documentation for a multi-repository system up to date,
+automatically.
 
-Interactive UI allow new hired developers to fast understand the project architecture and design decisions.
+You install the Docer GitHub Action in each of your repositories and point them all at
+one separate documentation repository. Whenever a pull request is merged in any of
+them, the action runs an AI agent inside GitHub Actions: the agent reads the merged PR,
+works out what it means for the system's architecture, and writes the update into the
+docs repo.
 
-MCP server to expose the architecture document to coding agents and developers.
+There is no Docer server, no hosted control plane, and no account to create. The agent
+runs entirely on your own GitHub Actions runners, and the documentation repository is
+the only place any state lives.
 
+## How it works
 
+```
+  repo-api    ──┐   PR merged
+  repo-worker ──┤──> GitHub Action ──> agent reads the PR ──> commit / PR
+  repo-web    ──┘    (per source repo)   + the existing docs      │
+                                                                  v
+                                                          repo-docs (docs repo)
+```
+
+1. A pull request is merged in one of your source repositories.
+2. That repository's workflow fires and runs the Docer action.
+3. The agent gathers the PR — title, description, diff, touched files — and checks out
+   the docs repo to read the architecture as currently documented.
+4. It decides whether the merge changed the architecture. If nothing meaningful
+   changed, it stops and writes nothing.
+5. If something did change, it edits the relevant documents and commits them back to
+   the docs repo (or opens a pull request there, if you would rather review first).
+
+Because every source repo writes into the same docs repo, the documentation describes
+the whole system rather than any single repository.
+
+## Setup
+
+**1. Create a documentation repository**, e.g. `my-org/system-docs`. It can be empty;
+the agent will establish the initial structure on the first merge it sees.
+
+**2. Create a credential that can write to it.** A GitHub App installation token or a
+fine-grained PAT with contents write access on the docs repo. The built-in
+`GITHUB_TOKEN` will not work — it is scoped to the repository running the workflow, and
+the agent needs to write to a different one. Add it as a secret (e.g. `DOCER_DOCS_TOKEN`)
+in each source repository, along with your model API key.
+
+**3. Add the workflow** to every repository that is part of the system:
+
+```yaml
+name: Docer
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: docer-docs
+  cancel-in-progress: false
+
+jobs:
+  document:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: imduchuyyy/docer@v1
+        with:
+          docs-repo: my-org/system-docs
+          docs-token: ${{ secrets.DOCER_DOCS_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Repeat for each repository in the system, changing nothing but the workflow's location.
+Every repo points at the same `docs-repo`.
+
+## Why a separate docs repository
+
+- **One system, many repos.** The architecture spans repository boundaries, so the
+  document that describes it cannot live inside any one of them.
+- **Documentation gets its own history.** Doc changes are reviewable on their own and
+  do not add noise to source pull requests.
+- **Git is the datastore.** No database and no service to operate: the docs repo holds
+  the content, and its commit history is the audit log of how the architecture evolved.
+
+## Status
+
+Early. The repository currently holds a Go CLI skeleton; see `PLAN.md` for the build
+order.
+
+## License
+
+MIT — see `LICENSE`.
