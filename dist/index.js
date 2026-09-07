@@ -1,70 +1,6 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 9877:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runAgent = runAgent;
-const core = __importStar(__nccwpck_require__(7484));
-const ai_1 = __nccwpck_require__(2793);
-const model_1 = __nccwpck_require__(8209);
-const tools_1 = __nccwpck_require__(7159);
-const prompt_1 = __nccwpck_require__(5476);
-async function runAgent(options) {
-    const result = await (0, ai_1.generateText)({
-        model: (0, model_1.resolveModel)(options.modelRef, options.apiKey),
-        system: prompt_1.SYSTEM_PROMPT,
-        prompt: options.taskPrompt,
-        tools: (0, tools_1.createDocsTools)(options.docsDirectory),
-        stopWhen: (0, ai_1.isStepCount)(options.maxSteps),
-        onStepEnd: (step) => {
-            for (const call of step.toolCalls) {
-                core.info(`tool: ${call.toolName}`);
-            }
-        },
-    });
-    return { text: result.text.trim(), steps: result.steps.length };
-}
-//# sourceMappingURL=agent.js.map
-
-/***/ }),
-
 /***/ 6842:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -115,17 +51,12 @@ const exec_1 = __nccwpck_require__(5236);
 const COMMITTER_NAME = "docer";
 const COMMITTER_EMAIL = "docer@users.noreply.github.com";
 const PUSH_ATTEMPTS = 5;
-async function checkoutDocsRepo(repo, token, branch) {
+async function checkoutDocsRepo(repo, token) {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), "docer-docs-"));
     const url = `https://x-access-token:${token}@github.com/${repo}.git`;
-    const cloned = await tryClone(url, directory, branch);
-    if (!cloned) {
-        throw new Error(`failed to clone ${repo}${branch ? ` (branch "${branch}")` : ""}; check docs-repo and the docs-token permissions`);
-    }
+    await (0, exec_1.exec)("git", ["clone", url, directory], { silent: true });
     await (0, exec_1.exec)("git", ["config", "user.name", COMMITTER_NAME], { cwd: directory });
-    await (0, exec_1.exec)("git", ["config", "user.email", COMMITTER_EMAIL], {
-        cwd: directory,
-    });
+    await (0, exec_1.exec)("git", ["config", "user.email", COMMITTER_EMAIL], { cwd: directory });
     return directory;
 }
 async function hasChanges(directory) {
@@ -138,51 +69,17 @@ async function hasChanges(directory) {
 async function commitAndPush(directory, message) {
     await (0, exec_1.exec)("git", ["add", "--all"], { cwd: directory });
     await (0, exec_1.exec)("git", ["commit", "--message", message], { cwd: directory });
-    const branch = (await (0, exec_1.getExecOutput)("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-        cwd: directory,
-        silent: true,
-    })).stdout.trim();
     for (let attempt = 1; attempt <= PUSH_ATTEMPTS; attempt++) {
-        const push = await (0, exec_1.getExecOutput)("git", ["push", "origin", `HEAD:${branch}`], {
-            cwd: directory,
-            ignoreReturnCode: true,
-            silent: true,
-        });
+        const push = await (0, exec_1.getExecOutput)("git", ["push", "--set-upstream", "origin", "HEAD"], { cwd: directory, ignoreReturnCode: true, silent: true });
         if (push.exitCode === 0) {
-            core.info(`Pushed to ${branch}.`);
             return;
         }
         if (attempt === PUSH_ATTEMPTS) {
             throw new Error(`could not push to the docs repository after ${PUSH_ATTEMPTS} attempts: ${push.stderr.trim()}`);
         }
         core.info(`Push rejected (attempt ${attempt}/${PUSH_ATTEMPTS}); another repository pushed first. Rebasing.`);
-        await (0, exec_1.exec)("git", ["fetch", "--unshallow", "origin", branch], {
-            cwd: directory,
-            ignoreReturnCode: true,
-            silent: true,
-        });
-        await (0, exec_1.exec)("git", ["fetch", "origin", branch], {
-            cwd: directory,
-            silent: true,
-        });
-        await (0, exec_1.exec)("git", ["rebase", `origin/${branch}`], { cwd: directory });
+        await (0, exec_1.exec)("git", ["pull", "--rebase"], { cwd: directory });
     }
-}
-async function tryClone(url, directory, branch) {
-    if (branch) {
-        const withBranch = await (0, exec_1.exec)("git", ["clone", "--depth", "1", "--branch", branch, url, directory], { ignoreReturnCode: true, silent: true });
-        if (withBranch === 0) {
-            return true;
-        }
-        core.info(`Branch "${branch}" not found; cloning the default branch.`);
-        await fs.rm(directory, { recursive: true, force: true });
-        await fs.mkdir(directory, { recursive: true });
-    }
-    const plain = await (0, exec_1.exec)("git", ["clone", "--depth", "1", url, directory], {
-        ignoreReturnCode: true,
-        silent: true,
-    });
-    return plain === 0;
 }
 //# sourceMappingURL=docs-repo.js.map
 
@@ -229,7 +126,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.readInputs = readInputs;
 const core = __importStar(__nccwpck_require__(7484));
-const model_1 = __nccwpck_require__(8209);
 function readInputs() {
     const docsRepo = core.getInput("docs-repo", { required: true });
     if (!/^[^/\s]+\/[^/\s]+$/.test(docsRepo)) {
@@ -239,30 +135,12 @@ function readInputs() {
     core.setSecret(docsToken);
     const githubToken = core.getInput("github-token", { required: true });
     core.setSecret(githubToken);
-    const model = (0, model_1.parseModelRef)(core.getInput("model", { required: true }));
-    const apiKey = core.getInput("api-key") || process.env[(0, model_1.apiKeyEnvVar)(model.provider)] || "";
-    if (!apiKey) {
-        throw new Error(`no API key for provider "${model.provider}": set the api-key input or the ${(0, model_1.apiKeyEnvVar)(model.provider)} environment variable`);
-    }
-    core.setSecret(apiKey);
     return {
         docsRepo,
-        docsBranch: core.getInput("docs-branch"),
         docsToken,
         githubToken,
-        model,
-        apiKey,
-        maxSteps: readPositiveInt("max-steps"),
-        maxDiffChars: readPositiveInt("max-diff-chars"),
+        model: core.getInput("model", { required: true }),
     };
-}
-function readPositiveInt(name) {
-    const raw = core.getInput(name, { required: true });
-    const value = Number(raw);
-    if (!Number.isInteger(value) || value <= 0) {
-        throw new Error(`${name} must be a positive integer, got "${raw}"`);
-    }
-    return value;
 }
 //# sourceMappingURL=inputs.js.map
 
@@ -308,11 +186,17 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
-const inputs_1 = __nccwpck_require__(6107);
-const pull_request_1 = __nccwpck_require__(4925);
+const anthropic_1 = __nccwpck_require__(9930);
+const google_1 = __nccwpck_require__(785);
+const openai_1 = __nccwpck_require__(3436);
+const ai_1 = __nccwpck_require__(2793);
 const docs_repo_1 = __nccwpck_require__(6842);
-const agent_1 = __nccwpck_require__(9877);
+const inputs_1 = __nccwpck_require__(6107);
 const prompt_1 = __nccwpck_require__(5476);
+const pull_request_1 = __nccwpck_require__(4925);
+const tools_1 = __nccwpck_require__(7159);
+const MAX_STEPS = 40;
+const registry = (0, ai_1.createProviderRegistry)({ anthropic: anthropic_1.anthropic, openai: openai_1.openai, google: google_1.google });
 async function run() {
     const pullNumber = (0, pull_request_1.mergedPullRequestNumber)();
     if (pullNumber === undefined) {
@@ -321,83 +205,37 @@ async function run() {
         return;
     }
     const inputs = (0, inputs_1.readInputs)();
-    const pullRequest = await (0, pull_request_1.collectPullRequest)(inputs.githubToken, pullNumber, inputs.maxDiffChars);
+    const model = registry.languageModel(inputs.model);
+    const pullRequest = await (0, pull_request_1.collectPullRequest)(inputs.githubToken, pullNumber);
     core.info(`Documenting ${pullRequest.repo}#${pullRequest.number}: ${pullRequest.title}`);
-    const docsDirectory = await (0, docs_repo_1.checkoutDocsRepo)(inputs.docsRepo, inputs.docsToken, inputs.docsBranch);
-    const agent = await (0, agent_1.runAgent)({
-        modelRef: inputs.model,
-        apiKey: inputs.apiKey,
-        docsDirectory,
-        taskPrompt: (0, prompt_1.buildTaskPrompt)(pullRequest),
-        maxSteps: inputs.maxSteps,
+    const docsDirectory = await (0, docs_repo_1.checkoutDocsRepo)(inputs.docsRepo, inputs.docsToken);
+    const result = await (0, ai_1.generateText)({
+        model,
+        system: prompt_1.SYSTEM_PROMPT,
+        prompt: (0, prompt_1.buildTaskPrompt)(pullRequest),
+        tools: (0, tools_1.createDocsTools)(docsDirectory),
+        stopWhen: (0, ai_1.isStepCount)(MAX_STEPS),
+        onStepEnd: (step) => {
+            for (const call of step.toolCalls) {
+                core.info(`tool: ${call.toolName}`);
+            }
+        },
     });
-    core.info(`Agent finished after ${agent.steps} steps: ${agent.text}`);
+    const summary = result.text.trim();
+    core.info(`Agent finished after ${result.steps.length} steps: ${summary}`);
+    core.setOutput("summary", summary);
     if (!(await (0, docs_repo_1.hasChanges)(docsDirectory))) {
         core.info("The agent left the documentation unchanged.");
         core.setOutput("updated", "false");
-        core.setOutput("summary", agent.text);
         return;
     }
     await (0, docs_repo_1.commitAndPush)(docsDirectory, (0, prompt_1.commitMessage)(pullRequest));
     core.setOutput("updated", "true");
-    core.setOutput("summary", agent.text);
 }
 run().catch((error) => {
     core.setFailed(error instanceof Error ? error.message : String(error));
 });
 //# sourceMappingURL=main.js.map
-
-/***/ }),
-
-/***/ 8209:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseModelRef = parseModelRef;
-exports.apiKeyEnvVar = apiKeyEnvVar;
-exports.resolveModel = resolveModel;
-const anthropic_1 = __nccwpck_require__(9930);
-const google_1 = __nccwpck_require__(785);
-const openai_1 = __nccwpck_require__(3436);
-const API_KEY_ENV = {
-    anthropic: "ANTHROPIC_API_KEY",
-    openai: "OPENAI_API_KEY",
-    google: "GOOGLE_GENERATIVE_AI_API_KEY",
-};
-function parseModelRef(value) {
-    const separator = value.indexOf(":");
-    if (separator === -1) {
-        throw new Error(`model must be "<provider>:<model-id>" (e.g. "anthropic:claude-opus-5"), got "${value}"`);
-    }
-    const provider = value.slice(0, separator);
-    const modelId = value.slice(separator + 1);
-    if (!isProviderName(provider)) {
-        throw new Error(`unknown provider "${provider}"; supported providers are ${Object.keys(API_KEY_ENV).join(", ")}`);
-    }
-    if (!modelId) {
-        throw new Error(`model id missing after "${provider}:"`);
-    }
-    return { provider, modelId };
-}
-function apiKeyEnvVar(provider) {
-    return API_KEY_ENV[provider];
-}
-function resolveModel(ref, apiKey) {
-    switch (ref.provider) {
-        case "anthropic":
-            return (0, anthropic_1.createAnthropic)({ apiKey })(ref.modelId);
-        case "openai":
-            return (0, openai_1.createOpenAI)({ apiKey })(ref.modelId);
-        case "google":
-            return (0, google_1.createGoogle)({ apiKey })(ref.modelId);
-    }
-}
-function isProviderName(value) {
-    return Object.prototype.hasOwnProperty.call(API_KEY_ENV, value);
-}
-//# sourceMappingURL=model.js.map
 
 /***/ }),
 
@@ -442,8 +280,7 @@ function buildTaskPrompt(pullRequest) {
         "Description:",
         pullRequest.body.trim() || "(no description)",
         "",
-        `Files changed (${pullRequest.files.length}):`,
-        pullRequest.files.join("\n"),
+        `Files changed: ${pullRequest.changedFiles}`,
         "",
         "Diff:",
         "```diff",
@@ -478,6 +315,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.mergedPullRequestNumber = mergedPullRequestNumber;
 exports.collectPullRequest = collectPullRequest;
 const github_1 = __nccwpck_require__(3228);
+const MAX_DIFF_CHARS = 200_000;
 function mergedPullRequestNumber() {
     const pullRequest = github_1.context.payload.pull_request;
     if (!pullRequest || pullRequest.merged !== true) {
@@ -485,27 +323,16 @@ function mergedPullRequestNumber() {
     }
     return pullRequest.number;
 }
-async function collectPullRequest(token, pullNumber, maxDiffChars) {
+async function collectPullRequest(token, pullNumber) {
     const octokit = (0, github_1.getOctokit)(token);
     const { owner, repo } = github_1.context.repo;
-    const details = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: pullNumber,
-    });
+    const request = { owner, repo, pull_number: pullNumber };
+    const details = await octokit.rest.pulls.get(request);
     const diffResponse = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: pullNumber,
+        ...request,
         mediaType: { format: "diff" },
     });
     const fullDiff = diffResponse.data;
-    const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
-        owner,
-        repo,
-        pull_number: pullNumber,
-        per_page: 100,
-    });
     return {
         repo: `${owner}/${repo}`,
         number: pullNumber,
@@ -513,10 +340,9 @@ async function collectPullRequest(token, pullNumber, maxDiffChars) {
         body: details.data.body ?? "",
         author: details.data.user?.login ?? "unknown",
         baseRef: details.data.base.ref,
-        mergeCommitSha: details.data.merge_commit_sha ?? "",
-        files: files.map((file) => `${file.status} ${file.filename}`),
-        diff: fullDiff.slice(0, maxDiffChars),
-        diffTruncated: fullDiff.length > maxDiffChars,
+        changedFiles: details.data.changed_files,
+        diff: fullDiff.slice(0, MAX_DIFF_CHARS),
+        diffTruncated: fullDiff.length > MAX_DIFF_CHARS,
     };
 }
 //# sourceMappingURL=pull-request.js.map
@@ -608,10 +434,10 @@ function createDocsTools(root) {
                         : content;
                 }
                 catch (error) {
-                    if (isNotFound(error)) {
-                        return `No file at "${relativePath}".`;
+                    if (error.code !== "ENOENT") {
+                        throw error;
                     }
-                    throw error;
+                    return `No file at "${relativePath}".`;
                 }
             },
         }),
@@ -628,31 +454,7 @@ function createDocsTools(root) {
                 return `Wrote ${relativePath} (${content.length} characters).`;
             },
         }),
-        delete_doc: (0, ai_1.tool)({
-            description: "Delete one file from the documentation repository. Use only when what it documented no longer exists.",
-            inputSchema: zod_1.z.object({
-                path: zod_1.z.string().describe("Path relative to the docs repository root."),
-            }),
-            execute: async ({ path: relativePath }) => {
-                const absolute = resolveInsideRoot(relativePath);
-                try {
-                    await fs.unlink(absolute);
-                    return `Deleted ${relativePath}.`;
-                }
-                catch (error) {
-                    if (isNotFound(error)) {
-                        return `No file at "${relativePath}".`;
-                    }
-                    throw error;
-                }
-            },
-        }),
     };
-}
-function isNotFound(error) {
-    return (typeof error === "object" &&
-        error !== null &&
-        error.code === "ENOENT");
 }
 //# sourceMappingURL=tools.js.map
 

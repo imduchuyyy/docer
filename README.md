@@ -87,8 +87,7 @@ Docer runs on the [Vercel AI SDK](https://ai-sdk.dev), so the model is a
 | `openai:gpt-5` | `OPENAI_API_KEY` |
 | `google:gemini-2.5-pro` | `GOOGLE_GENERATIVE_AI_API_KEY` |
 
-Pass the key through the environment as above, or explicitly with the `api-key` input.
-The agent needs solid long-context reasoning and reliable tool calling — it reads the
+Each provider reads its own key from the environment, as shown above. The agent needs solid long-context reasoning and reliable tool calling — it reads the
 existing docs and a full PR diff before deciding what to change — so a frontier model is
 the sensible default.
 
@@ -98,12 +97,8 @@ the sensible default.
 | --- | --- | --- | --- |
 | `docs-repo` | yes | — | Documentation repository, as `owner/repo`. |
 | `docs-token` | yes | — | Token with contents write access to the docs repo. |
-| `docs-branch` | no | default branch | Branch of the docs repo to update. |
 | `github-token` | no | `${{ github.token }}` | Reads the merged PR from the current repo. |
 | `model` | no | `anthropic:claude-opus-5` | `<provider>:<model-id>`. |
-| `api-key` | no | provider env var | Model provider API key. |
-| `max-steps` | no | `40` | Maximum tool-use steps per run. |
-| `max-diff-chars` | no | `200000` | Largest diff handed to the model. |
 
 Outputs: `updated` (`"true"` when the docs repo changed) and `summary` (the agent's
 closing account of what it did).

@@ -50,10 +50,10 @@ export function createDocsTools(root: string) {
             ? content.slice(0, MAX_READ_CHARS) + "\n\n[truncated]"
             : content;
         } catch (error) {
-          if (isNotFound(error)) {
-            return `No file at "${relativePath}".`;
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            throw error;
           }
-          throw error;
+          return `No file at "${relativePath}".`;
         }
       },
     }),
@@ -73,32 +73,5 @@ export function createDocsTools(root: string) {
       },
     }),
 
-    delete_doc: tool({
-      description:
-        "Delete one file from the documentation repository. Use only when what it documented no longer exists.",
-      inputSchema: z.object({
-        path: z.string().describe("Path relative to the docs repository root."),
-      }),
-      execute: async ({ path: relativePath }) => {
-        const absolute = resolveInsideRoot(relativePath);
-        try {
-          await fs.unlink(absolute);
-          return `Deleted ${relativePath}.`;
-        } catch (error) {
-          if (isNotFound(error)) {
-            return `No file at "${relativePath}".`;
-          }
-          throw error;
-        }
-      },
-    }),
   };
-}
-
-function isNotFound(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
-  );
 }

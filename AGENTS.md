@@ -18,9 +18,10 @@ docs repo. `README.md` has the user-facing flow and the action reference.
 TypeScript on Node 24, shipped as a bundled JavaScript GitHub Action.
 
 - **[Vercel AI SDK](https://ai-sdk.dev) (`ai` v7)** drives the agent loop, so Docer is
-  provider-agnostic: `model` is a `<provider>:<model-id>` string resolved in
-  `src/model.ts`. Adding a provider means adding a `@ai-sdk/*` package and one `case`
-  there — nothing else in the codebase knows which provider is in use.
+  provider-agnostic: `model` is a `<provider>:<model-id>` string handed to the SDK's own
+  `createProviderRegistry` in `src/main.ts`, whose default separator is already `:`.
+  Adding a provider means adding a `@ai-sdk/*` package and one entry in that registry.
+  Each provider reads its own API key from the environment, so Docer never handles keys.
 - **`@actions/core` / `@actions/github` / `@actions/exec`** for inputs, the Octokit
   client, and git.
 - The agent's tools are **ours**, defined in `src/tools.ts` — the AI SDK loops over tools
@@ -31,13 +32,12 @@ TypeScript on Node 24, shipped as a bundled JavaScript GitHub Action.
 
 | File | Role |
 | --- | --- |
-| `src/main.ts` | Entry point and the whole control flow, in order. |
+| `src/main.ts` | Provider registry, entry point, and the whole control flow. |
 | `src/inputs.ts` | Reads and validates action inputs; masks every secret. |
 | `src/pull-request.ts` | Gathers the merged PR — metadata, file list, diff. |
 | `src/docs-repo.ts` | Clone, commit, and push the docs repo, with rebase-retry. |
-| `src/tools.ts` | The `list_docs` / `read_doc` / `write_doc` / `delete_doc` tools. |
+| `src/tools.ts` | The `list_docs` / `read_doc` / `write_doc` tools. |
 | `src/prompt.ts` | System prompt, task prompt, commit message. |
-| `src/agent.ts` | Wires model + tools + prompts into one `generateText` call. |
 
 `dist/index.js` is the bundled action and **is committed** — GitHub runs it directly and
 never installs dependencies. Rebuild with `npm run build` and commit `dist/` in the same

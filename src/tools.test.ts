@@ -62,13 +62,3 @@ test("paths that escape the docs root are rejected", async () => {
     }
   });
 });
-
-test("delete_doc removes a file and is quiet about missing ones", async () => {
-  await withDocsRoot(async (root, tools) => {
-    await fs.writeFile(path.join(root, "gone.md"), "bye");
-    await tools.delete_doc.execute!({ path: "gone.md" }, noOptions);
-    await assert.rejects(() => fs.stat(path.join(root, "gone.md")));
-    const second = await tools.delete_doc.execute!({ path: "gone.md" }, noOptions);
-    assert.match(String(second), /No file at "gone.md"/);
-  });
-});

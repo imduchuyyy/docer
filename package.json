@@ -5,9 +5,9 @@
   "description": "GitHub Action that keeps multi-repo architecture docs up to date",
   "license": "MIT",
   "scripts": {
-    "build": "tsc && ncc build lib/main.js -o dist --source-map",
+    "build": "rm -rf lib && tsc && ncc build lib/main.js -o dist --source-map",
     "typecheck": "tsc --noEmit",
-    "test": "tsc && node --test 'lib/**/*.test.js'",
+    "test": "rm -rf lib && tsc && node --test 'lib/**/*.test.js'",
     "all": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {

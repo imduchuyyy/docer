@@ -25,9 +25,9 @@ is no server and git is the datastore.
 5. **Multi-repo hardening.** Several repos merging at once: the fan-in rebase path under
    real contention, scoping updates to the right section, and first-run behaviour against
    an empty docs repo.
-6. **Cost and size control.** Large diffs are truncated bluntly at `max-diff-chars` today.
-   Summarise or select from the diff instead, and decide what a run should be allowed to
-   cost.
+6. **Cost and size control.** Large diffs are truncated bluntly at a 200k-character
+   constant today. Summarise or select from the diff instead, and decide what a run should
+   be allowed to cost.
 
 ## Later
 
