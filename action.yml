@@ -1,0 +1,48 @@
+name: "Docer"
+description: "Keep architecture documentation for a multi-repository system up to date when a pull request is merged"
+author: "imduchuyyy"
+branding:
+  icon: "book-open"
+  color: "purple"
+
+inputs:
+  docs-repo:
+    description: 'The documentation repository to write to, as "owner/repo".'
+    required: true
+  docs-branch:
+    description: "Branch of the documentation repository to update. Defaults to its default branch."
+    required: false
+    default: ""
+  docs-token:
+    description: "Token with contents write access to the documentation repository. The workflow's GITHUB_TOKEN cannot write to another repository."
+    required: true
+  github-token:
+    description: "Token used to read the merged pull request from this repository."
+    required: true
+    default: ${{ github.token }}
+  model:
+    description: 'Model to run, as "<provider>:<model-id>". Providers: anthropic, openai, google.'
+    required: true
+    default: "anthropic:claude-opus-5"
+  api-key:
+    description: "API key for the model provider. Defaults to the provider's standard environment variable."
+    required: false
+    default: ""
+  max-steps:
+    description: "Maximum tool-use steps the agent may take."
+    required: true
+    default: "40"
+  max-diff-chars:
+    description: "Maximum diff size handed to the model, in characters."
+    required: true
+    default: "200000"
+
+outputs:
+  updated:
+    description: '"true" if the documentation repository was changed.'
+  summary:
+    description: "The agent's closing summary of what it did."
+
+runs:
+  using: node24
+  main: dist/index.js

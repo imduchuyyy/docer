@@ -68,11 +68,45 @@ jobs:
         with:
           docs-repo: my-org/system-docs
           docs-token: ${{ secrets.DOCER_DOCS_TOKEN }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: anthropic:claude-opus-5
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
 Repeat for each repository in the system, changing nothing but the workflow's location.
 Every repo points at the same `docs-repo`.
+
+## Choosing a model
+
+Docer runs on the [Vercel AI SDK](https://ai-sdk.dev), so the model is a
+`<provider>:<model-id>` string and any supported provider works:
+
+| `model` | API key read from |
+| --- | --- |
+| `anthropic:claude-opus-5` (default) | `ANTHROPIC_API_KEY` |
+| `openai:gpt-5` | `OPENAI_API_KEY` |
+| `google:gemini-2.5-pro` | `GOOGLE_GENERATIVE_AI_API_KEY` |
+
+Pass the key through the environment as above, or explicitly with the `api-key` input.
+The agent needs solid long-context reasoning and reliable tool calling — it reads the
+existing docs and a full PR diff before deciding what to change — so a frontier model is
+the sensible default.
+
+## Action reference
+
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `docs-repo` | yes | — | Documentation repository, as `owner/repo`. |
+| `docs-token` | yes | — | Token with contents write access to the docs repo. |
+| `docs-branch` | no | default branch | Branch of the docs repo to update. |
+| `github-token` | no | `${{ github.token }}` | Reads the merged PR from the current repo. |
+| `model` | no | `anthropic:claude-opus-5` | `<provider>:<model-id>`. |
+| `api-key` | no | provider env var | Model provider API key. |
+| `max-steps` | no | `40` | Maximum tool-use steps per run. |
+| `max-diff-chars` | no | `200000` | Largest diff handed to the model. |
+
+Outputs: `updated` (`"true"` when the docs repo changed) and `summary` (the agent's
+closing account of what it did).
 
 ## Why a separate docs repository
 
@@ -85,8 +119,9 @@ Every repo points at the same `docs-repo`.
 
 ## Status
 
-Early. The repository currently holds a Go CLI skeleton; see `PLAN.md` for the build
-order.
+Early, and not yet released. The action runs end to end — it reads the merged PR, edits
+the docs repo through the agent, and pushes — but it has not been exercised against real
+repositories at scale. See `PLAN.md` for what is next.
 
 ## License
 
